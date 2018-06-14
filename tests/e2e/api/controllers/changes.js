@@ -198,31 +198,11 @@ describe('changes handler', () => {
   });
 
   afterAll(done =>
-    // Clean up like normal
-    utils.revertDb()
-    // And also revert users we created in before
-    .then(() => {
-      const userDocs = users.map(({username}) => `org.couchdb.user:${username}`);
-
-      return utils.request('/_users/_all_docs')
-        .then(({rows}) => {
-          const deleteMe = rows
-            .filter(({id}) => userDocs.includes(id))
-            .map(row => ({
-              _id: row.id,
-              _rev: row.value.rev,
-              _deleted: true
-            }));
-
-            return utils.request({
-              path: '/_users/_bulk_docs',
-              method: 'POST',
-              body: JSON.stringify({ docs: deleteMe }),
-              headers: { 'content-type': 'application/json' }
-            });
-        });
-      })
-    .then(done));
+    utils
+      .revertDb()
+      .then(() => utils.deleteUsers(users.map(user => user.username)))
+      .then(done)
+  );
 
   afterEach(done => utils.revertDb(DOCS_TO_KEEP).then(done));
 

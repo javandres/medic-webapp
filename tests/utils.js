@@ -221,6 +221,30 @@ const revertDb = (except, ignoreRefresh) => {
   });
 };
 
+const deleteUsers = (usernames) => {
+  const userIds = JSON.stringify(usernames.map(user => `org.couchdb.user:${user}`)),
+        method = 'POST',
+        headers = { 'Content-Type': 'application/json' };
+
+  return Promise
+    .all([
+      request(`/${constants.DB_NAME}/_all_docs?include_docs=true&keys=${userIds}`),
+      request(`/_users/_all_docs?include_docs=true&keys=${userIds}`)
+    ])
+    .then(results => {
+      const docs = results.map(result => result.rows.map(row => {
+        row.doc._deleted = true;
+        return row.doc;
+      }));
+
+      return Promise.all([
+        request({ path: `/${constants.DB_NAME}/_bulk_docs`, body: { docs: docs[0]}, method, headers}),
+        request({ path: `/_users/_bulk_docs`, body: { docs: docs[1]}, method, headers})
+      ]);
+    })
+  ;
+};
+
 module.exports = {
 
   db: db,
@@ -388,6 +412,9 @@ module.exports = {
    * @return     {Promise}  promise
    */
   revertDb: revertDb,
+
+  // Deletes userSettings and couchdb Users
+  deleteUsers: deleteUsers,
 
   resetBrowser: () => {
     browser.driver.navigate().refresh().then(() => {

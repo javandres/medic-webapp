@@ -37,8 +37,6 @@ describe('Bulk Docs Service', function () {
     sinon.stub(authorization, 'allowedDoc').returns(true);
     sinon.stub(authorization, 'getViewResults').callsFake(doc => ({ view: doc }));
     sinon.stub(serverUtils, 'serverError');
-    sinon.stub(db.medic, 'allDocs').resolves({ rows: [] });
-    sinon.stub(db.medic, 'bulkDocs').resolves([]);
   });
 
   afterEach(function() {
@@ -187,6 +185,11 @@ describe('Bulk Docs Service', function () {
   });
 
   describe('filterAllowedDocs', () => {
+    beforeEach(() => {
+      sinon.stub(db.medic, 'allDocs').resolves({ rows: [] });
+      sinon.stub(db.medic, 'bulkDocs').resolves([]);
+    });
+
     it('filters authorized docs, requests view results for each doc', () => {
       const docs = [{ _id: 1 }, { _id: 2 }, { _id: 3 }, { _id: 4 }, { _id: 5 }];
 
@@ -262,6 +265,11 @@ describe('Bulk Docs Service', function () {
   });
 
   describe('filterNewDocs', () => {
+    beforeEach(() => {
+      sinon.stub(db.medic, 'allDocs').resolves({ rows: [] });
+      sinon.stub(db.medic, 'bulkDocs').resolves([]);
+    });
+
     it('returns identical array when all docs are new', () => {
       const docs = [
         { someData: 'aaa' },
@@ -309,6 +317,11 @@ describe('Bulk Docs Service', function () {
   });
 
   describe('Filter Request Docs', () => {
+    beforeEach(() => {
+      sinon.stub(db.medic, 'allDocs').resolves({ rows: [] });
+      sinon.stub(db.medic, 'bulkDocs').resolves([]);
+    });
+
     it('returns empty when request has no body', () => {
       return service._filterRequestDocs({}, null).then(result => {
         result.length.should.equal(0);
@@ -391,6 +404,8 @@ describe('Bulk Docs Service', function () {
   describe('Filter Restricted Request', () => {
     let testReq;
     beforeEach(() => {
+      sinon.stub(db.medic, 'allDocs').resolves({ rows: [] });
+      sinon.stub(db.medic, 'bulkDocs').resolves([]);
       testReq = {
         userCtx: { name: 'user' },
         body:
