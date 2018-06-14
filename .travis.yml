@@ -59,21 +59,21 @@ before_script:
 script:
   - |
     if [[ "$TEST_SUITE" = 'normal' ]]; then
-#      node --stack_size=10000 `which grunt` ci-unit &&
+      node --stack_size=10000 `which grunt` ci-unit &&
       node --stack_size=10000 `which grunt` ci-integration-e2e
-#    elif [[ "$TEST_SUITE" = 'performance' ]]; then
-#       node --stack_size=10000 `which grunt` ci-performance
+    elif [[ "$TEST_SUITE" = 'performance' ]]; then
+      node --stack_size=10000 `which grunt` ci-performance
     else
       echo "ERROR No or unknown value for TEST_SUITE env var ('${TEST_SUITE}')."
       exit 1
     fi
 
-# jobs:
-#   include:
-#    - if: type != pull_request
-#      stage: "Publish binaries"
-#      script: node --stack_size=10000 `which grunt` publish
-#      env: NODE_VERSION=8 PUBLISH_TO=horti
+jobs:
+  include:
+    - if: type != pull_request
+      stage: "Publish binaries"
+      script: node --stack_size=10000 `which grunt` publish
+      env: NODE_VERSION=8 PUBLISH_TO=horti
 
 after_failure:
   - |
@@ -100,12 +100,12 @@ after_failure:
       aws s3 cp tests/results "$S3_PATH"/test-results --recursive
       aws s3 cp tests/logs "$S3_PATH"/ --recursive
 
-#notifications:
-#  webhooks:
-#    urls:
-#      - https://medic.slack.com/services/hooks/travis?token=xcYT8yusfEdSwLskhBxK4Vwj
-#    on_success: change
-#    on_failure: always
-#  email:
-#    recipients:
-#      - dev@medicmobile.org
+notifications:
+  webhooks:
+    urls:
+      - https://medic.slack.com/services/hooks/travis?token=xcYT8yusfEdSwLskhBxK4Vwj
+    on_success: change
+    on_failure: always
+  email:
+    recipients:
+      - dev@medicmobile.org
