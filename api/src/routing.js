@@ -133,8 +133,7 @@ const RESTRICTED_ENDPOINTS = [
   '_design/*/_view/*',
   '_find',
   '_explain',
-  '_index',
-  '_purge'
+  '_index'
 ];
 
 const RESTRICTED_BLOCKED_ENPOINT = {
