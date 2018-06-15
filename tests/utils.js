@@ -232,10 +232,16 @@ const deleteUsers = (usernames) => {
       request(`/_users/_all_docs?include_docs=true&keys=${userIds}`)
     ])
     .then(results => {
-      const docs = results.map(result => result.rows.map(row => {
-        row.doc._deleted = true;
-        return row.doc;
-      }));
+      const docs = results.map(result =>
+        result.rows
+          .map(row => {
+            if (row.doc) {
+              row.doc._deleted = true;
+              row.doc.type = 'tombstone';
+              return row.doc;
+            }
+          })
+          .filter(doc => doc));
 
       return Promise.all([
         request({ path: `/${constants.DB_NAME}/_bulk_docs`, body: { docs: docs[0]}, method, headers}),
