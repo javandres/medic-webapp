@@ -158,17 +158,13 @@ const consumeChanges = (username, results, lastSeq) => {
 };
 
 let currentSeq;
-const getCurrentSeq = (username) => {
-  const options = {
-    path: '/',
-    auth: `${username}:${password}`,
-    method: 'GET'
-  };
-  return utils.requestOnTestDb(options).then(result => {
-    currentSeq = result.update_seq;
-  });
+const getCurrentSeq = () => {
+  return utils
+    .requestOnTestDb('/_changes?descending=true&limit=1')
+    .then(result => {
+      currentSeq = result.last_seq;
+    });
 };
-
 
 describe('changes handler', () => {
 
@@ -207,7 +203,7 @@ describe('changes handler', () => {
   afterEach(done => utils.revertDb(DOCS_TO_KEEP).then(done));
 
   describe('Filtered replication', () => {
-    beforeEach(done => getCurrentSeq('bob').then(done));
+    beforeEach(done => getCurrentSeq().then(done));
 
     const bobsIds = [...DEFAULT_EXPECTED],
           stevesIds = [...DEFAULT_EXPECTED];
@@ -383,7 +379,7 @@ describe('changes handler', () => {
       newIds.push(...DEFAULT_EXPECTED);
       return utils
         .updateSettings({ changes_controller: _.defaults({ reiterate_changes: false }, defaultSettings) }, true)
-        .then(() => getCurrentSeq('bob'))
+        .then(() => getCurrentSeq())
         .then(() => {
           return Promise
             .all([
@@ -417,12 +413,12 @@ describe('changes handler', () => {
         .then(([ allowedDocsResult, deniedDocsResult ]) => {
           allowedDocsResult.forEach((doc, idx) => allowedDocs[idx]._rev = doc.rev);
           deniedDocsResult.forEach((doc, idx) => deniedDocs[idx]._rev = doc.rev);
-          return getCurrentSeq('bob');
+          return getCurrentSeq();
         })
         .then(() => Promise.all([
           requestChanges('bob', { since: currentSeq, feed: 'longpoll' }),
           utils.saveDocs(deniedDocs.map(doc => _.extend(doc, { _deleted: true }))),
-          utils.saveDocs(allowedDocs.map(doc => _.extend(doc, { _deleted: true })))
+          utils.saveDocs(allowedDocs.map(doc => _.extend(doc, { _deleted: true }))),
         ]))
         .then(([ changes ]) => {
           console.log(JSON.stringify(changes));
@@ -453,7 +449,7 @@ describe('changes handler', () => {
             'fixture:steveville',
             'fixture:user:steve',
             ...allowedDocIds);
-          return getCurrentSeq('steve');
+          return getCurrentSeq();
         })
         .then(() => {
           return Promise.all([
