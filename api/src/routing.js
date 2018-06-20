@@ -652,7 +652,7 @@ proxyForAuditing.on('proxyReq', function(proxyReq, req) {
   }
 });
 
-// intercept responses from restricted _bulk_docs to fill in the gaps
+// intercept responses from restricted endpoints to fill in forbidden docs gaps
 proxyForAuditing.on('proxyRes', (proxyRes, req, res) => {
   if (res.interceptResponse) {
     let body = new Buffer('');
@@ -662,6 +662,5 @@ proxyForAuditing.on('proxyRes', (proxyRes, req, res) => {
     proxyRes.pipe(res);
   }
 });
-
 
 module.exports = app;
