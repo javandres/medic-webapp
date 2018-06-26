@@ -37,7 +37,7 @@ describe('Changes controller', () => {
   beforeEach(() => {
     clock = sinon.useFakeTimers();
     emitters = [];
-    testReq = { on: sinon.stub().callsFake((event, fn) => reqOnClose = fn)};
+    testReq = { on: sinon.stub().callsFake((event, fn) => reqOnClose = fn), userCtx: { name: 'user' }};
     testRes = { type: sinon.stub(), write: sinon.stub(), end: sinon.stub(), setHeader: sinon.stub() };
     userCtx = { name: 'user', facility_id: 'facility', contact_id: 'contact' };
     proxy = { web: sinon.stub() };
@@ -51,7 +51,6 @@ describe('Changes controller', () => {
     changesSpy = sinon.spy();
     changesCancelSpy = sinon.spy();
 
-    sinon.stub(auth, 'getUserCtx').resolves({ name: 'user' });
     sinon.stub(auth, 'isOnlineOnly').returns(false);
     sinon.stub(auth, 'getUserSettings').resolves(userCtx);
 
@@ -1432,7 +1431,7 @@ describe('Changes controller', () => {
 
       return controller
         .request(proxy, testReq, testRes)
-        .then(nextTick())
+        .then(nextTick)
         .then(() => {
           clock.tick(20000);
           const feed = controller._getNormalFeeds()[0];
