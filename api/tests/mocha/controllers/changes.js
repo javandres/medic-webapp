@@ -58,7 +58,7 @@ describe('Changes controller', () => {
     sinon.stub(authorization, 'getViewResults').returns({});
     sinon.stub(authorization, 'allowedDoc');
     sinon.stub(authorization, 'getDepth').returns(1);
-    sinon.stub(authorization, 'getUserAuthorizationData').resolves({});
+    sinon.stub(authorization, 'getAuthorizationContext').resolves({});
     sinon.stub(authorization, 'getAllowedDocIds').resolves({});
     sinon.stub(authorization, 'isAuthChange').returns(false);
     sinon.stub(authorization, 'filterAllowedDocs').returns([]);
@@ -307,13 +307,13 @@ describe('Changes controller', () => {
       const subjectIds = ['s1', 's2', 's3'],
             allowedDocIds = ['d1', 'd2', 'd3'],
             contactsByDepthKeys = [['facility_id']];
-      authorization.getUserAuthorizationData.resolves({ subjectIds, contactsByDepthKeys });
+      authorization.getAuthorizationContext.resolves({ subjectIds, contactsByDepthKeys });
       authorization.getAllowedDocIds.resolves(allowedDocIds);
       return controller
         .request(proxy, testReq, testRes)
         .then(() => {
-          authorization.getUserAuthorizationData.callCount.should.equal(1);
-          authorization.getUserAuthorizationData.withArgs(userCtx).callCount.should.equal(1);
+          authorization.getAuthorizationContext.callCount.should.equal(1);
+          authorization.getAuthorizationContext.withArgs(userCtx).callCount.should.equal(1);
           authorization.getAllowedDocIds.callCount.should.equal(1);
           authorization.getAllowedDocIds.withArgs(sinon.match({ userCtx, subjectIds, contactsByDepthKeys })).callCount.should.equal(1);
           return Promise.resolve();
@@ -473,8 +473,8 @@ describe('Changes controller', () => {
       const validatedIds = Array.from({length: 101}, () => Math.floor(Math.random() * 101));
       authorization.getAllowedDocIds.resolves(validatedIds);
       authorization.filterAllowedDocs.returns([
-        { change: { id: 8, changes: [] }, id: 8 },
-        { change: { id: 9, changes: [] }, id: 9 }
+        { change: { id: 8, changes: [] }, id: 8, viewResults: {} },
+        { change: { id: 9, changes: [] }, id: 9, viewResults: {} }
       ]);
       testReq.query = { since: 0 };
 
@@ -515,6 +515,11 @@ describe('Changes controller', () => {
           controller._getLongpollFeeds().length.should.equal(0);
           authorization.allowedDoc.callCount.should.equal(0);
           authorization.filterAllowedDocs.callCount.should.equal(1);
+          authorization.filterAllowedDocs.args[0][1].should.deep.equal([
+            { change: { id: 7, changes: [] }, id: 7, viewResults: {} },
+            { change: { id: 8, changes: [] }, id: 8, viewResults: {} },
+            { change: { id: 9, changes: [] }, id: 9, viewResults: {} }
+          ]);
         });
     });
 
@@ -619,9 +624,9 @@ describe('Changes controller', () => {
           feeds[0].should.not.deep.equal(initialFeed);
           feeds[0].id.should.equal('myFeed');
           auth.getUserSettings.callCount.should.equal(2);
-          authorization.getUserAuthorizationData.callCount.should.equal(2);
+          authorization.getAuthorizationContext.callCount.should.equal(2);
 
-          authorization.getUserAuthorizationData.args[1][0].should.deep.equal({ name: 'user', facility_id: 'facility_id' });
+          authorization.getAuthorizationContext.args[1][0].should.deep.equal({ name: 'user', facility_id: 'facility_id' });
           authorization.getAllowedDocIds.callCount.should.equal(2);
           feeds[0].userCtx.should.deep.equal({ name: 'user', facility_id: 'facility_id' });
           initialFeed.ended.should.equal(true);
@@ -672,6 +677,12 @@ describe('Changes controller', () => {
           }));
           authorization.allowedDoc.callCount.should.equal(0);
           authorization.filterAllowedDocs.callCount.should.equal(1);
+          authorization.filterAllowedDocs.args[0][1].should.deep.equal([
+            { change: { id: 3, changes: [] }, id: 3, viewResults: {} },
+            { change: { id: 2, changes: [] }, id: 2, viewResults: {} },
+            { change: { id: 4, changes: [] }, id: 4, viewResults: {} },
+            { change: { id: 1, changes: [] }, id: 1, viewResults: {} }
+          ]);
         });
     });
   });
@@ -935,6 +946,9 @@ describe('Changes controller', () => {
         })
         .then(nextTick)
         .then(() => {
+          authorization.filterAllowedDocs.callCount.should.equal(1);
+          authorization.filterAllowedDocs.args[0][1].should.deep.equal([]);
+
           const feed = controller._getLongpollFeeds()[0];
           const emitter = controller._getContinuousFeed();
 
@@ -947,7 +961,7 @@ describe('Changes controller', () => {
           authorization.allowedDoc.withArgs(2).returns(false);
           authorization.allowedDoc.withArgs(4).returns(false);
           authorization.allowedDoc.withArgs(1).returns(true);
-          authorization.updateContext.withArgs(1, true).returns(2);
+          authorization.updateContext.withArgs(true).returns(2);
 
           emitter.emit('change', { id: 3, changes: [], doc: { _id: 3 }}, 0, 1);
           feed.pendingChanges.length.should.equal(1);
@@ -975,6 +989,12 @@ describe('Changes controller', () => {
             ],
             last_seq: 4
           }));
+          authorization.filterAllowedDocs.callCount.should.equal(2);
+          authorization.filterAllowedDocs.args[1][1].should.deep.equal([
+            { change: { id: 3, changes: [] }, id: 3, viewResults: {} },
+            { change: { id: 2, changes: [] }, id: 2, viewResults: {} },
+            { change: { id: 4, changes: [] }, id: 4, viewResults: {} }
+          ]);
         });
     });
 
@@ -985,7 +1005,7 @@ describe('Changes controller', () => {
       authorization.allowedDoc.withArgs('contact-1').returns(true);
       authorization.allowedDoc.withArgs('contact-2').returns(false);
 
-      authorization.updateContext.withArgs('contact-1', true).returns(2);
+      authorization.updateContext.withArgs(true).returns(2);
       authorization.filterAllowedDocs.onCall(0).returns([]);
       authorization.filterAllowedDocs.onCall(1).returns([
         { change: { id: 'report-3', changes: [] }, id: 'report-3' },
@@ -1122,9 +1142,8 @@ describe('Changes controller', () => {
       authorization.allowedDoc.withArgs(1).returns(true);
       authorization.allowedDoc.withArgs(2).returns(true);
 
-      authorization.updateContext.withArgs(1, true).returns(2);
-      authorization.filterAllowedDocs.withArgs(sinon.match.any, []).returns([]);
-      authorization.filterAllowedDocs.returns([ { change: { id: 3, changes: [] }, id: 3 } ]);
+      authorization.updateContext.withArgs(true).returns(2);
+      authorization.filterAllowedDocs.onCall(1).returns([ { change: { id: 3, changes: [] }, id: 3 } ]);
 
       return controller
         .request(proxy, testReq, testRes)
@@ -1136,6 +1155,8 @@ describe('Changes controller', () => {
         })
         .then(nextTick)
         .then(() => {
+          authorization.filterAllowedDocs.callCount.should.equal(1);
+          authorization.filterAllowedDocs.args[0][1].should.deep.equal([]);
           const feed = controller._getLongpollFeeds()[0];
           const emitter = controller._getContinuousFeed();
           clock.tick(1000);
@@ -1157,6 +1178,11 @@ describe('Changes controller', () => {
           emitter.emit('change', { id: 2, changes: [], doc: { _id: 2}}, 0, 4);
           testRes.end.callCount.should.equal(1);
           testRes.write.callCount.should.equal(1);
+          authorization.filterAllowedDocs.callCount.should.equal(2);
+          authorization.filterAllowedDocs.args[1][1].should.deep.equal([
+            { change: { id: 3, changes: [] }, id: 3, viewResults: {} },
+            { change: { id: 4, changes: [] }, id: 4, viewResults: {} }
+          ]);
         });
     });
 
@@ -1167,17 +1193,11 @@ describe('Changes controller', () => {
       testReq.query = { feed: 'longpoll' };
       authorization.getAllowedDocIds.onCall(0).resolves([2, 3]);
       authorization.getAllowedDocIds.onCall(1).resolves([1, 2, 3]);
-      authorization.allowedDoc.withArgs(3)
-        .onCall(0).returns(false)
-        .onCall(1).returns(true);
-      authorization.allowedDoc.withArgs(4)
-        .onCall(0).returns(false)
-        .onCall(1).returns(false);
-
+      authorization.allowedDoc.withArgs(3).returns(false);
+      authorization.allowedDoc.withArgs(4).returns(false);
       authorization.allowedDoc.withArgs(1).returns(true);
-      authorization.allowedDoc.withArgs(2).returns(true);
 
-      authorization.updateContext.withArgs(1, true).returns(2);
+      authorization.updateContext.withArgs(true).returns(2);
       authorization.filterAllowedDocs.withArgs(sinon.match.any, []).returns([]);
 
       return controller
@@ -1198,6 +1218,7 @@ describe('Changes controller', () => {
           emitter.emit('change', { id: 4, changes: [], doc: { _id: 4 }}, 0, 2);
           clock.tick(1000);
           emitter.emit('change', { id: 1, changes: [], doc: { _id: 1 }}, 0, 3);
+          emitter.emit('change', { id: 22, changes: [], doc: { _id: 22 }}, 0, 3);
           controller._getLongpollFeeds().length.should.equal(0);
           feed.results.should.deep.equal([]);
           controller._getNormalFeeds()[0].should.equal(feed);
@@ -1211,6 +1232,7 @@ describe('Changes controller', () => {
           const feed = controller._getNormalFeeds()[0];
           feed.upstreamRequests.length.should.equal(1);
           feed.pendingChanges.should.deep.equal([
+            { change: { id: 22, changes: [] }, viewResults: {}, id: 22 },
             { change: { id: 2, changes: [] }, viewResults: {}, id: 2 },
             { change: { id: 11, changes: [] }, viewResults: {}, id: 11 },
           ]);
@@ -1233,6 +1255,16 @@ describe('Changes controller', () => {
             last_seq: 5
           }));
           authorization.filterAllowedDocs.callCount.should.equal(2);
+          authorization.filterAllowedDocs.args[0][1].should.deep.equal([]);
+          authorization.filterAllowedDocs.args[1][1].should.deep.equal([
+            { change: { id: 22, changes: [] }, viewResults: {}, id: 22 },
+            { change: { id: 2, changes: [] }, viewResults: {}, id: 2 },
+            { change: { id: 11, changes: [] }, viewResults: {}, id: 11 }
+          ]);
+          authorization.allowedDoc.callCount.should.equal(3);
+          authorization.allowedDoc.args[0][0].should.equal(3);
+          authorization.allowedDoc.args[1][0].should.equal(4);
+          authorization.allowedDoc.args[2][0].should.equal(1);
         });
     });
   });
@@ -1283,7 +1315,7 @@ describe('Changes controller', () => {
       defaultSettings.reiterate_changes = false;
       testReq.query = { feed: 'longpoll', since: 'seq' };
       testReq.uniqId = 'myFeed';
-      authorization.getUserAuthorizationData.resolves({ subjectIds: ['a', 'b'], contactsByDepthKeys: []});
+      authorization.getAuthorizationContext.resolves({ subjectIds: ['a', 'b'], contactsByDepthKeys: []});
       authorization.getAllowedDocIds.onCall(0).resolves([ 'a', 'b' ]);
       authorization.getAllowedDocIds.onCall(1).resolves([ 'a', 'b', 'c', 'd' ]);
       authorization.allowedDoc.withArgs(1).returns(true);
@@ -1291,8 +1323,9 @@ describe('Changes controller', () => {
       authorization.allowedDoc.withArgs(3).returns(true);
       authorization.allowedDoc.withArgs(4).returns(false);
 
-      authorization.updateContext.withArgs(1, true).returns(2);
-      authorization.updateContext.withArgs(3, true).returns(0);
+      authorization.updateContext.withArgs(true)
+                   .onCall(0).returns(2)
+                   .onCall(1).returns(0);
 
       return controller
         .request(proxy, testReq, testRes)
@@ -1335,7 +1368,7 @@ describe('Changes controller', () => {
         })
         .then(nextTick)
         .then(() => {
-          authorization.getUserAuthorizationData.callCount.should.equal(1);
+          authorization.getAuthorizationContext.callCount.should.equal(1);
           authorization.getAllowedDocIds.callCount.should.equal(2);
 
           changesSpy.callCount.should.equal(4);
