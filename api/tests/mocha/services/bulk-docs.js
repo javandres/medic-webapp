@@ -22,7 +22,8 @@ describe('Bulk Docs Service', function () {
       write: sinon.stub(),
       end: sinon.stub(),
       type: sinon.stub(),
-      setHeader: () => {}
+      setHeader: () => {},
+      send: sinon.stub()
     };
 
     userCtx = { name: 'user' };
@@ -374,27 +375,22 @@ describe('Bulk Docs Service', function () {
 
     beforeEach(() => {
       testReq = { body: {} };
-      testRes = {
-        write: sinon.stub(),
-        end: sinon.stub()
-      };
+      testRes = { send: sinon.stub() };
     });
 
     it('passes unchanged response if `new_edits` param is false', () => {
       testReq.body.new_edits = false;
 
       service._interceptResponse(testReq, testRes, { docs: [] }, JSON.stringify(['my response']));
-      testRes.write.callCount.should.equal(1);
-      testRes.write.args[0][0].should.equal(JSON.stringify(['my response']));
-      testRes.end.callCount.should.equal(1);
+      testRes.send.callCount.should.equal(1);
+      testRes.send.args[0][0].should.equal(JSON.stringify(['my response']));
     });
 
     it('passes unchanged response for malformed responses', () => {
       const originalBody = { docs: [{ _id: 1 }, { _id: 2 }] };
       service._interceptResponse(testReq, testRes, originalBody, JSON.stringify({ name: 'eddie' }));
-      testRes.write.callCount.should.equal(1);
-      testRes.write.args[0][0].should.equal(JSON.stringify({ name: 'eddie' }));
-      testRes.end.callCount.should.equal(1);
+      testRes.send.callCount.should.equal(1);
+      testRes.send.args[0][0].should.equal(JSON.stringify({ name: 'eddie' }));
     });
 
     it('fills for forbidden docs with stubs and preserves correct order', () => {
@@ -402,15 +398,14 @@ describe('Bulk Docs Service', function () {
       testReq.body = { docs: [{ _id: 5 }, { _id: 2 }] };
       service._interceptResponse(testReq, testRes, originalBody, JSON.stringify([{ id: 5, ok: true }, { id: 2, ok: true }]));
 
-      testRes.write.callCount.should.equal(1);
-      testRes.write.args[0][0].should.equal(JSON.stringify([
+      testRes.send.callCount.should.equal(1);
+      testRes.send.args[0][0].should.equal(JSON.stringify([
         { id: 1, error: 'forbidden' },
         { id: 2, ok: true },
         { id: 3, error: 'forbidden' },
         { id: 4, error: 'forbidden' },
         { id: 5, ok: true }
       ]));
-      testRes.end.callCount.should.equal(1);
     });
   });
 
@@ -564,10 +559,9 @@ describe('Bulk Docs Service', function () {
 
         testRes.interceptResponse(JSON.stringify(response));
 
-        testRes.write.callCount.should.equal(1);
-        testRes.end.callCount.should.equal(1);
+        testRes.send.callCount.should.equal(1);
 
-        testRes.write.args[0][0].should.equal(JSON.stringify([
+        testRes.send.args[0][0].should.equal(JSON.stringify([
           { id: 'a', error: 'forbidden'},
           { id: 'b', error: 'forbidden' },
           { id: 'c', ok: true },
@@ -594,9 +588,8 @@ describe('Bulk Docs Service', function () {
           testRes.type.callCount.should.equal(1);
           testRes.type.args[0][0].should.equal('json');
           authorization.getAuthorizationContext.callCount.should.equal(0);
-          testRes.write.callCount.should.equal(1);
-          testRes.end.callCount.should.equal(1);
-          JSON.parse(testRes.write.args[0][0]).error.should.equal('bad_request');
+          testRes.send.callCount.should.equal(1);
+          JSON.parse(testRes.send.args[0][0]).error.should.equal('bad_request');
         });
     });
 
@@ -609,9 +602,8 @@ describe('Bulk Docs Service', function () {
           Promise.resolve()
         ]).then(() => {
           authorization.getAuthorizationContext.callCount.should.equal(0);
-          testRes.write.callCount.should.equal(1);
-          testRes.end.callCount.should.equal(1);
-          JSON.parse(testRes.write.args[0][0]).error.should.equal('bad_request');
+          testRes.send.callCount.should.equal(1);
+          JSON.parse(testRes.send.args[0][0]).error.should.equal('bad_request');
         });
     });
 
@@ -624,9 +616,8 @@ describe('Bulk Docs Service', function () {
           Promise.resolve()
         ]).then(() => {
           authorization.getAuthorizationContext.callCount.should.equal(0);
-          testRes.write.callCount.should.equal(1);
-          testRes.end.callCount.should.equal(1);
-          JSON.parse(testRes.write.args[0][0]).error.should.equal('bad_request');
+          testRes.send.callCount.should.equal(1);
+          JSON.parse(testRes.send.args[0][0]).error.should.equal('bad_request');
         });
     });
   });
