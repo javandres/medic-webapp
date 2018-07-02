@@ -336,6 +336,7 @@ describe('Changes controller', () => {
           changesSpy.callCount.should.equal(2);
           changesSpy.args[1][0].should.deep.equal({
             since: 0,
+            batch_size: 40,
             doc_ids: ['d1', 'd2', 'd3']
           });
         });
@@ -353,6 +354,7 @@ describe('Changes controller', () => {
           changesSpy.args[1][0].should.deep.equal({
             since: '22',
             doc_ids: ['d1', 'd2', 'd3'],
+            batch_size: 40,
             conflicts: true,
             seq_interval: false
           });
@@ -1332,6 +1334,7 @@ describe('Changes controller', () => {
         .then(() => {
           changesSpy.callCount.should.equal(2);
           changesSpy.args[1][0].should.deep.equal({
+            batch_size: 2,
             doc_ids: ['a', 'b'],
             since: 'seq'
           });
@@ -1372,10 +1375,12 @@ describe('Changes controller', () => {
 
           changesSpy.callCount.should.equal(4);
           changesSpy.args[2][0].should.deep.equal({
+            batch_size: 2,
             doc_ids: ['a', 'b'],
             since: 'seq'
           });
           changesSpy.args[3][0].should.deep.equal({
+            batch_size: 2,
             doc_ids: ['c', 'd'],
             since: 'seq'
           });
